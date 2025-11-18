@@ -7,14 +7,18 @@ import CartList from "./CartList";
 import NotFound from "./NotFound";
 import Checkout from "./Checkout";
 import Favorites from "./Favorites";
+import ProductDetail from "./ProductDetail";
+import Account from "./Account";
 
 export default class App extends Component {
   state = {
     currentCategory: "",
     products: [],
+    allProducts: [],
     cart: {},
     featuredProducts: [],
     favorites: {},
+    currentUser: null,
   };
 
   componentDidMount() {
@@ -25,11 +29,15 @@ export default class App extends Component {
     if (savedFavorites)
       this.setState({ favorites: JSON.parse(savedFavorites) });
 
+    const savedUser = localStorage.getItem("currentUser");
+    if (savedUser) this.setState({ currentUser: JSON.parse(savedUser) });
+
     fetch("http://localhost:3000/products")
       .then((res) => res.json())
       .then((data) => {
         this.setState({
           products: data,
+          allProducts: data,
           featuredProducts: data.slice(0, 6),
         });
       });
@@ -64,6 +72,43 @@ export default class App extends Component {
     fetch("http://localhost:3000/products?categoryId=" + categoryId)
       .then((response) => response.json())
       .then((data) => this.setState({ products: data }));
+  };
+
+  goHome = () => {
+    this.setState((prevState) => {
+      const allProducts = prevState.allProducts || [];
+      return {
+        currentCategory: "",
+        products: allProducts,
+        featuredProducts: allProducts.slice(0, 6),
+      };
+    });
+  };
+
+  focusProduct = (productId) => {
+    const { allProducts } = this.state;
+    const found = allProducts.find((p) => p.id === productId);
+
+    if (found) {
+      this.setState({
+        products: [found],
+        currentCategory: "",
+        featuredProducts: [],
+      });
+      return;
+    }
+
+    fetch("http://localhost:3000/products?id=" + productId)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.length > 0) {
+          this.setState({
+            products: [data[0]],
+            currentCategory: "",
+            featuredProducts: [],
+          });
+        }
+      });
   };
 
   addToCart = (product) => {
@@ -115,6 +160,22 @@ export default class App extends Component {
     );
   };
 
+  handleLogin = (userData) => {
+    const user = {
+      name: userData.name?.trim() || "Guest",
+      email: userData.email?.trim() || "",
+    };
+    this.setState({ currentUser: user }, () =>
+      localStorage.setItem("currentUser", JSON.stringify(user))
+    );
+  };
+
+  handleLogout = () => {
+    this.setState({ currentUser: null }, () =>
+      localStorage.removeItem("currentUser")
+    );
+  };
+
   render() {
     const categoryInfo = { title: "Category List" };
     const productInfo = { title: "Product List" };
@@ -127,7 +188,10 @@ export default class App extends Component {
               cart={this.state.cart}
               updateCartItem={this.updateCartItem}
               searchProduct={this.searchProduct}
-              products={this.state.products}
+              products={this.state.allProducts}
+              goHome={this.goHome}
+              focusProduct={this.focusProduct}
+              currentUser={this.state.currentUser}
             />
           </div>
         </div>
@@ -171,10 +235,30 @@ export default class App extends Component {
               <Favorites
                 favorites={this.state.favorites}
                 toggleFavorite={this.toggleFavorite}
-                products={this.state.products.concat(
-                  this.state.featuredProducts
-                )}
+                products={this.state.allProducts}
                 addToCart={this.addToCart}
+              />
+            }
+          />
+          <Route
+            path="/account"
+            element={
+              <Account
+                user={this.state.currentUser}
+                onLogin={this.handleLogin}
+                onLogout={this.handleLogout}
+              />
+            }
+          />
+          <Route
+            path="/product/:productId"
+            element={
+              <ProductDetail
+                products={this.state.allProducts}
+                favorites={this.state.favorites}
+                toggleFavorite={this.toggleFavorite}
+                addToCart={this.addToCart}
+                currentUser={this.state.currentUser}
               />
             }
           />

@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export default function Navi({
   cart = {},
   updateCartItem,
-  products,
+  products = [],
   searchProduct,
+  goHome,
+  focusProduct,
+  currentUser,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (!searchQuery) {
@@ -29,14 +33,31 @@ export default function Navi({
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    if (searchProduct) searchProduct(searchQuery);
+    const trimmed = searchQuery.trim();
+    if (!trimmed) return;
+
+    const exactMatch = products.find(
+      (p) => p.productName.toLowerCase() === trimmed.toLowerCase()
+    );
+
+    if (exactMatch && focusProduct) {
+      focusProduct(exactMatch.id);
+      setShowDropdown(false);
+      return;
+    }
+
+    if (searchProduct) searchProduct(trimmed);
     setShowDropdown(false);
   };
 
-  const handleSelectProduct = (productName) => {
-    setSearchQuery(productName);
+  const handleSelectProduct = (product) => {
+    setSearchQuery(product.productName);
     setShowDropdown(false);
-    if (searchProduct) searchProduct(productName);
+    if (focusProduct) {
+      focusProduct(product.id);
+    } else if (searchProduct) {
+      searchProduct(product.productName);
+    }
   };
 
   const cartArray = Object.values(cart);
@@ -51,6 +72,13 @@ export default function Navi({
 
   const toggleCart = () => setIsOpen(!isOpen);
 
+  const handleLogoClick = () => {
+    if (goHome) goHome();
+    navigate("/");
+  };
+
+  const isActivePath = (path) => location.pathname.startsWith(path);
+
   return (
     <nav
       style={{
@@ -63,12 +91,47 @@ export default function Navi({
         fontFamily: "Inter, sans-serif",
       }}
     >
-      <h2
-        style={{ margin: 0, color: "#102a43", cursor: "pointer" }}
-        onClick={() => navigate("/")}
+      <button
+        onClick={handleLogoClick}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          border: "none",
+          background: "none",
+          cursor: "pointer",
+          padding: 0,
+        }}
       >
-        QuickCart
-      </h2>
+        <div
+          style={{
+            width: "34px",
+            height: "34px",
+            borderRadius: "10px",
+            background:
+              "linear-gradient(135deg, rgba(25,118,210,0.15), rgba(30,136,229,0.35))",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 700,
+            color: "#0f172a",
+            fontSize: "16px",
+            boxShadow: "0 4px 10px rgba(24,94,224,0.25)",
+          }}
+        >
+          QC
+        </div>
+        <span
+          style={{
+            fontSize: "18px",
+            fontWeight: 700,
+            color: "#0f172a",
+            letterSpacing: "0.02em",
+          }}
+        >
+          QuickCart
+        </span>
+      </button>
 
       <div style={{ position: "relative", flex: 1, margin: "0 24px" }}>
         <form onSubmit={handleSearchSubmit}>
@@ -109,7 +172,7 @@ export default function Navi({
               <li
                 key={p.id}
                 style={{ padding: "8px 12px", cursor: "pointer" }}
-                onMouseDown={() => handleSelectProduct(p.productName)}
+                onMouseDown={() => handleSelectProduct(p)}
                 onMouseOver={(e) =>
                   (e.currentTarget.style.backgroundColor = "#e3f2fd")
                 }
@@ -124,16 +187,65 @@ export default function Navi({
         )}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+        }}
+      >
         <button
           onClick={() => navigate("/account")}
-          style={{ background: "none", border: "none", cursor: "pointer" }}
+          style={{
+            backgroundColor: isActivePath("/account")
+              ? "rgba(25,118,210,0.08)"
+              : "transparent",
+            border: "none",
+            cursor: "pointer",
+            padding: "6px 12px",
+            borderRadius: "999px",
+            fontSize: "14px",
+            color: "#334155",
+            fontWeight: isActivePath("/account") ? 600 : 500,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
         >
-          My Account
+          <span
+            style={{
+              width: "28px",
+              height: "28px",
+              borderRadius: "50%",
+              backgroundColor: "#e3f2fd",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 600,
+              color: "#1565c0",
+              fontSize: "12px",
+            }}
+          >
+            {currentUser?.name
+              ? currentUser.name.charAt(0).toUpperCase()
+              : "?"}
+          </span>
+          {currentUser ? `Hi, ${currentUser.name.split(" ")[0]}` : "My Account"}
         </button>
         <button
           onClick={() => navigate("/favorites")}
-          style={{ background: "none", border: "none", cursor: "pointer" }}
+          style={{
+            backgroundColor: isActivePath("/favorites")
+              ? "rgba(25,118,210,0.08)"
+              : "transparent",
+            border: "none",
+            cursor: "pointer",
+            padding: "6px 10px",
+            borderRadius: "999px",
+            fontSize: "14px",
+            color: "#334155",
+            fontWeight: isActivePath("/favorites") ? 600 : 500,
+          }}
         >
           Favorites
         </button>
